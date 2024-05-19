@@ -1,0 +1,163 @@
+```{r}
+#Importing libraries
+library(zoo)
+library(tidyverse)
+suppressPackageStartupMessages(library(caret))
+library(e1071)
+suppressPackageStartupMessages(library(kernlab))
+```
+
+
+```{r}
+#Loading the data
+data <- read.csv("loan_data_set.csv")
+```
+
+```{r}
+#Looking at structure of data
+str(data)
+```
+
+```{r}
+#Removing Loan_ID column
+data <- data[,-1]
+```
+
+```{r}
+#Finding the NULL values
+colSums(is.na(data))
+```
+
+```{r}
+#Filling the NULL values
+data$LoanAmount <- na.approx(data$LoanAmount, rule = 2)
+data$Loan_Amount_Term <- na.approx(data$Loan_Amount_Term)
+```
+
+
+```{r}
+#Checking for NULL values in data
+colSums(is.na(data))
+```
+```{r}
+#Dropping data with NULL values
+data <- na.omit(data)
+```
+
+```{r}
+str(data)
+```
+
+```{r}
+#Converting the datatype of each features to factor
+data$Gender <- factor(data$Gender)
+data$Married <- factor(data$Married)
+data$Dependents <- factor(data$Dependents)
+data$Education <- factor(data$Education)
+data$Self_Employed <- factor(data$Self_Employed)
+data$Property_Area <- factor(data$Property_Area)
+data$Loan_Status <- factor(data$Loan_Status)
+```
+
+```{r}
+# set the seed for reproducibility
+set.seed(123)
+
+# split the dataset into training and testing subsets
+train_index <- sample(nrow(data), floor(0.7 * nrow(data)), replace = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+```
+
+```{r, warning = FALSE}
+#Tuning parameter tuneGrid
+search.grid = expand.grid(C = seq(0.1, 2, length = 20))
+
+#Cross Validation parameter
+train.control = trainControl(
+  method = 'repeatedcv', 
+  number = 3,
+  repeats = 10
+  )
+#Final training
+svm.m1 = train(Loan_Status~.,
+               data = train_data,
+               method = 'svmLinear',
+               trControl = train.control,
+               tuneGrid = search.grid)
+
+#performance results for the top 5 models
+svm.m1$results |>  
+  top_n(5, wt = Accuracy) |> 
+  arrange(desc(Accuracy))
+
+```
+
+```{r}
+#running the prediction
+pred <- predict(svm.m1, newdata = test_data)
+#Confusion matrix
+confusionMatrix(pred, test_data$Loan_Status)
+```
+
+```{r}
+#Tuning tuneGrid parameter
+search.grid = expand.grid(degree = c(1, 2, 3),
+                          scale = c(0.001, 0.01, 0.1, 1.0),
+                          C = seq(0.1, 2, length = 20))
+
+#training the model
+svm.m2 = train(Loan_Status ~.,
+               data = train_data,
+               method = 'svmPoly',
+               trControl = train.control,
+              tuneGrid = search.grid)
+
+#performance results for the top 5 models
+svm.m2$results |>  
+  top_n(5, wt = Accuracy) |> 
+  arrange(desc(Accuracy))
+
+#best model
+confusionMatrix(svm.m2)
+```
+
+```{r}
+#running the prediction
+pred_Poly <- predict(svm.m2, newdata = test_data)
+#Confusion matrix
+confusionMatrix(pred_Poly, test_data$Loan_Status)
+```
+
+```{r}
+#Cross validation with normally
+train.control = trainControl(
+  method = 'cv', 
+  number = 3
+  )
+
+#Tuning the parameter tuneGrid
+search.grid = expand.grid(sigma = seq(0.1, 2, length = 20),
+                          C = seq(0.1, 2, length = 20))
+
+svm.m3 = train(Loan_Status ~.,
+             data = train_data,
+             method = 'svmRadial',
+            trControl = train.control,
+               tuneGrid = search.grid)
+
+svm.m3$results |>  
+  top_n(5, wt = Accuracy) |> 
+  arrange(desc(Accuracy))
+
+#best model
+confusionMatrix(svm.m3)
+```
+
+```{r}
+#running the prediction
+pred_Poly <- predict(svm.m3, newdata = test_data)
+#Confusion matrix
+confusionMatrix(pred_Poly, test_data$Loan_Status)
+```
+
